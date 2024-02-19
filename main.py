@@ -25,13 +25,10 @@ from configs import base_detector_args, advanced_detector_args
 
 warnings.filterwarnings("ignore")
 
-def main(rank, args):
 
+def main(rank, args):
     dist.init_process_group(
-        backend="nccl",
-        init_method="env://",
-        world_size=args.world_size,
-        rank=rank
+        backend="nccl", init_method="env://", world_size=args.world_size, rank=rank
     )
 
     # Fix seed
@@ -43,58 +40,60 @@ def main(rank, args):
     torch.cuda.set_device(rank)
 
     trainset = DataFactory(
-        name=args.dataset, partition=args.partitions[0],
-        data_root=args.data_root
+        name=args.dataset, partition=args.partitions[0], data_root=args.data_root
     )
     testset = DataFactory(
-        name=args.dataset, partition=args.partitions[1],
-        data_root=args.data_root
+        name=args.dataset, partition=args.partitions[1], data_root=args.data_root
     )
 
     train_loader = DataLoader(
         dataset=trainset,
-        collate_fn=custom_collate, batch_size=args.batch_size // args.world_size,
-        num_workers=args.num_workers, pin_memory=True,
+        collate_fn=custom_collate,
+        batch_size=args.batch_size // args.world_size,
+        num_workers=args.num_workers,
+        pin_memory=True,
         sampler=DistributedSampler(
-            trainset, num_replicas=args.world_size,
-            rank=rank, drop_last=True)
+            trainset, num_replicas=args.world_size, rank=rank, drop_last=True
+        ),
     )
     test_loader = DataLoader(
         dataset=testset,
-        collate_fn=custom_collate, batch_size=args.batch_size // args.world_size,
-        num_workers=args.num_workers, pin_memory=True,
+        collate_fn=custom_collate,
+        batch_size=args.batch_size // args.world_size,
+        num_workers=args.num_workers,
+        pin_memory=True,
         sampler=DistributedSampler(
-            testset, num_replicas=args.world_size,
-            rank=rank, drop_last=True)
+            testset, num_replicas=args.world_size, rank=rank, drop_last=True
+        ),
     )
 
-    if args.dataset == 'hicodet':
+    if args.dataset == "hicodet":
         object_to_target = train_loader.dataset.dataset.object_to_verb
         args.num_verbs = 117
-    elif args.dataset == 'vcoco':
+    elif args.dataset == "vcoco":
         object_to_target = list(train_loader.dataset.dataset.object_to_action.values())
         args.num_verbs = 24
-    
+
     model = build_detector(args, object_to_target)
 
     if os.path.exists(args.resume):
         print(f"=> Rank {rank}: PViC loaded from saved checkpoint {args.resume}.")
-        checkpoint = torch.load(args.resume, map_location='cpu')
-        model.load_state_dict(checkpoint['model_state_dict'])
+        checkpoint = torch.load(args.resume, map_location="cpu")
+        model.load_state_dict(checkpoint["model_state_dict"])
     else:
         print(f"=> Rank {rank}: PViC randomly initialised.")
 
     engine = CustomisedDLE(model, train_loader, test_loader, args)
 
     if args.cache:
-        if args.dataset == 'hicodet':
+        if args.dataset == "hicodet":
             engine.cache_hico(test_loader, args.output_dir)
-        elif args.dataset == 'vcoco':
+        elif args.dataset == "vcoco":
             engine.cache_vcoco(test_loader, args.output_dir)
         return
 
     if args.eval:
-        if args.dataset == 'vcoco':
+        if args.dataset == "vcoco":
             """
             NOTE This evaluation results on V-COCO do not necessarily follow the 
             protocol as the official evaluation code, and so are only used for
@@ -119,16 +118,23 @@ def main(rank, args):
 
     model.freeze_detector()
     param_dicts = [{"params": [p for p in model.parameters() if p.requires_grad]}]
-    optim = torch.optim.AdamW(param_dicts, lr=args.lr_head, weight_decay=args.weight_decay)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optim, args.lr_drop, gamma=args.lr_drop_factor)
+    optim = torch.optim.AdamW(
+        param_dicts, lr=args.lr_head, weight_decay=args.weight_decay
+    )
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(
+        optim, args.lr_drop, gamma=args.lr_drop_factor
+    )
     # Override optimiser and learning rate scheduler
     engine.update_state_key(optimizer=optim, lr_scheduler=lr_scheduler)
 
     engine(args.epochs)
 
+
 @torch.no_grad()
 def sanity_check(args):
-    dataset = DataFactory(name='hicodet', partition=args.partitions[0], data_root=args.data_root)
+    dataset = DataFactory(
+        name="hicodet", partition=args.partitions[0], data_root=args.data_root
+    )
     args.num_verbs = 117
     args.num_triplets = 600
     object_to_target = dataset.dataset.object_to_verb
@@ -136,46 +142,54 @@ def sanity_check(args):
     if args.eval:
         model.eval()
     if os.path.exists(args.resume):
-        ckpt = torch.load(args.resume, map_location='cpu')
+        ckpt = torch.load(args.resume, map_location="cpu")
         print(f"Loading checkpoints from {args.resume}.")
-        model.load_state_dict(ckpt['model_state_dict'])
+        model.load_state_dict(ckpt["model_state_dict"])
 
     image, target = dataset[998]
     outputs = model([image], targets=[target])
 
-if __name__ == '__main__':
 
+if __name__ == "__main__":
     if "DETR" not in os.environ:
-        raise KeyError(f"Specify the detector type with env. variable \"DETR\".")
+        raise KeyError(f'Specify the detector type with env. variable "DETR".')
     elif os.environ["DETR"] == "base":
-        parser = argparse.ArgumentParser(parents=[base_detector_args(),])
-        parser.add_argument('--detector', default='base', type=str)
-        parser.add_argument('--raw-lambda', default=2.8, type=float)
+        parser = argparse.ArgumentParser(
+            parents=[
+                base_detector_args(),
+            ]
+        )
+        parser.add_argument("--detector", default="base", type=str)
+        parser.add_argument("--raw-lambda", default=2.8, type=float)
     elif os.environ["DETR"] == "advanced":
-        parser = argparse.ArgumentParser(parents=[advanced_detector_args(),])
-        parser.add_argument('--detector', default='advanced', type=str)
-        parser.add_argument('--raw-lambda', default=1.7, type=float)
+        parser = argparse.ArgumentParser(
+            parents=[
+                advanced_detector_args(),
+            ]
+        )
+        parser.add_argument("--detector", default="advanced", type=str)
+        parser.add_argument("--raw-lambda", default=1.7, type=float)
 
-    parser.add_argument('--kv-src', default='C5', type=str, choices=['C5', 'C4', 'C3'])
-    parser.add_argument('--repr-dim', default=384, type=int)
-    parser.add_argument('--triplet-enc-layers', default=1, type=int)
-    parser.add_argument('--triplet-dec-layers', default=2, type=int)
+    parser.add_argument("--kv-src", default="C5", type=str, choices=["C5", "C4", "C3"])
+    parser.add_argument("--repr-dim", default=384, type=int)
+    parser.add_argument("--triplet-enc-layers", default=1, type=int)
+    parser.add_argument("--triplet-dec-layers", default=2, type=int)
 
-    parser.add_argument('--alpha', default=.5, type=float)
-    parser.add_argument('--gamma', default=.1, type=float)
-    parser.add_argument('--box-score-thresh', default=.05, type=float)
-    parser.add_argument('--min-instances', default=3, type=int)
-    parser.add_argument('--max-instances', default=15, type=int)
+    parser.add_argument("--alpha", default=0.5, type=float)
+    parser.add_argument("--gamma", default=0.1, type=float)
+    parser.add_argument("--box-score-thresh", default=0.05, type=float)
+    parser.add_argument("--min-instances", default=3, type=int)
+    parser.add_argument("--max-instances", default=15, type=int)
 
-    parser.add_argument('--resume', default='', help='Resume from a model')
-    parser.add_argument('--use-wandb', default=False, action='store_true')
+    parser.add_argument("--resume", default="", help="Resume from a model")
+    parser.add_argument("--use-wandb", default=False, action="store_true")
 
-    parser.add_argument('--port', default='1234', type=str)
-    parser.add_argument('--seed', default=140, type=int)
-    parser.add_argument('--world-size', default=8, type=int)
-    parser.add_argument('--eval', action='store_true')
-    parser.add_argument('--cache', action='store_true')
-    parser.add_argument('--sanity', action='store_true')
+    parser.add_argument("--port", default="1234", type=str)
+    parser.add_argument("--seed", default=140, type=int)
+    parser.add_argument("--world-size", default=8, type=int)
+    parser.add_argument("--eval", action="store_true")
+    parser.add_argument("--cache", action="store_true")
+    parser.add_argument("--sanity", action="store_true")
 
     args = parser.parse_args()
     print(args)

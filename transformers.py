@@ -22,6 +22,7 @@ from torch import nn, Tensor
 from attention import MultiheadAttention
 from typing import List, Optional, Callable
 
+
 class TransformerEncoderLayer(nn.Module):
     def __init__(self, dim, num_heads, ffn_interm_dim, dropout=0.1):
         super().__init__()
@@ -40,18 +41,23 @@ class TransformerEncoderLayer(nn.Module):
         self.qpos_proj = nn.Linear(2 * dim, dim)
         self.kpos_proj = nn.Linear(2 * dim, dim)
         self.ffn = nn.Sequential(
-            nn.Linear(dim, ffn_interm_dim), nn.ReLU(), nn.Dropout(dropout),
-            nn.Linear(ffn_interm_dim, dim)
+            nn.Linear(dim, ffn_interm_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(ffn_interm_dim, dim),
         )
         self.ln1 = nn.LayerNorm(dim)
         self.ln2 = nn.LayerNorm(dim)
         self.dp1 = nn.Dropout(dropout)
         self.dp2 = nn.Dropout(dropout)
 
-    def forward(self, x, pos,
-            attn_mask: Optional[Tensor] = None,
-            key_padding_mask: Optional[Tensor] = None,
-        ):
+    def forward(
+        self,
+        x,
+        pos,
+        attn_mask: Optional[Tensor] = None,
+        key_padding_mask: Optional[Tensor] = None,
+    ):
         q = self.q_proj(x)
         k = self.k_proj(x)
         v = self.v_proj(x)
@@ -60,21 +66,32 @@ class TransformerEncoderLayer(nn.Module):
         q = q + q_pos
         k = k + k_pos
         attn, attn_weights = self.attn(
-            query=q, key=k, value=v,
-            attn_mask=attn_mask, key_padding_mask=key_padding_mask
+            query=q,
+            key=k,
+            value=v,
+            attn_mask=attn_mask,
+            key_padding_mask=key_padding_mask,
         )
         x = self.ln1(x + self.dp1(attn))
         x = self.ln2(x + self.dp2(self.ffn(x)))
         return x, attn_weights
 
+
 class TransformerEncoder(nn.Module):
-    def __init__(self, hidden_size=256, num_heads=8, num_layers=2, dropout=.1):
+    def __init__(self, hidden_size=256, num_heads=8, num_layers=2, dropout=0.1):
         super().__init__()
         self.num_layers = num_layers
-        self.layers = nn.ModuleList([TransformerEncoderLayer(
-            dim=hidden_size, num_heads=num_heads,
-            ffn_interm_dim=hidden_size * 4, dropout=dropout
-        ) for _ in range(num_layers)])
+        self.layers = nn.ModuleList(
+            [
+                TransformerEncoderLayer(
+                    dim=hidden_size,
+                    num_heads=num_heads,
+                    ffn_interm_dim=hidden_size * 4,
+                    dropout=dropout,
+                )
+                for _ in range(num_layers)
+            ]
+        )
 
     def forward(self, x, pos):
         attn_weights = []
@@ -83,8 +100,8 @@ class TransformerEncoder(nn.Module):
             attn_weights.append(attn)
         return x, attn_weights
 
-class TransformerDecoderLayer(nn.Module):
 
+class TransformerDecoderLayer(nn.Module):
     def __init__(self, q_dim, kv_dim, num_heads, ffn_interm_dim, dropout=0.1):
         """
         Parameters:
@@ -118,7 +135,9 @@ class TransformerDecoderLayer(nn.Module):
         self.q_attn_qpos_proj = nn.Linear(kv_dim * 4, q_dim)
         self.q_attn_kpos_proj = nn.Linear(kv_dim * 4, q_dim)
 
-        self.qk_attn = MultiheadAttention(q_dim * 2, num_heads, dropout=dropout, vdim=q_dim)
+        self.qk_attn = MultiheadAttention(
+            q_dim * 2, num_heads, dropout=dropout, vdim=q_dim
+        )
         self.qk_attn_q_proj = nn.Linear(q_dim, q_dim)
         self.qk_attn_k_proj = nn.Linear(kv_dim, q_dim)
         self.qk_attn_v_proj = nn.Linear(kv_dim, q_dim)
@@ -129,7 +148,7 @@ class TransformerDecoderLayer(nn.Module):
             nn.Linear(q_dim, ffn_interm_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(ffn_interm_dim, q_dim)
+            nn.Linear(ffn_interm_dim, q_dim),
         )
         self.ln1 = nn.LayerNorm(q_dim)
         self.ln2 = nn.LayerNorm(q_dim)
@@ -138,14 +157,17 @@ class TransformerDecoderLayer(nn.Module):
         self.dp2 = nn.Dropout(dropout)
         self.dp3 = nn.Dropout(dropout)
 
-    def forward(self,
-            queries: Tensor, features: Tensor,
-            q_pos: Tensor, k_pos: Tensor,
-            q_attn_mask: Optional[Tensor] = None,
-            qk_attn_mask: Optional[Tensor] = None,
-            q_padding_mask: Optional[Tensor] = None,
-            kv_padding_mask: Optional[Tensor] = None,
-        ):
+    def forward(
+        self,
+        queries: Tensor,
+        features: Tensor,
+        q_pos: Tensor,
+        k_pos: Tensor,
+        q_attn_mask: Optional[Tensor] = None,
+        qk_attn_mask: Optional[Tensor] = None,
+        q_padding_mask: Optional[Tensor] = None,
+        kv_padding_mask: Optional[Tensor] = None,
+    ):
         """
         Parameters:
         -----------
@@ -181,8 +203,7 @@ class TransformerDecoderLayer(nn.Module):
         q = q + q_p
         k = k + k_p
         q_attn = self.q_attn(
-            q, k, value=v, attn_mask=q_attn_mask,
-            key_padding_mask=q_padding_mask
+            q, k, value=v, attn_mask=q_attn_mask, key_padding_mask=q_padding_mask
         )[0]
         queries = self.ln1(queries + self.dp1(q_attn))
         # Perform cross attention from memory features to queries
@@ -203,19 +224,24 @@ class TransformerDecoderLayer(nn.Module):
         k = torch.cat([k, k_p], dim=3).view(hw, bs, self.q_dim * 2)
 
         qk_attn = self.qk_attn(
-            query=q, key=k, value=v, attn_mask=qk_attn_mask,
-            key_padding_mask=kv_padding_mask
+            query=q,
+            key=k,
+            value=v,
+            attn_mask=qk_attn_mask,
+            key_padding_mask=kv_padding_mask,
         )[0]
         queries = self.ln2(queries + self.dp2(qk_attn))
         queries = self.ln3(queries + self.dp3(self.ffn(queries)))
 
         return queries
 
-class TransformerDecoder(nn.Module):
 
+class TransformerDecoder(nn.Module):
     def __init__(self, decoder_layer, num_layers, return_intermediate=True):
         super().__init__()
-        self.layers = nn.ModuleList([copy.deepcopy(decoder_layer) for i in range(num_layers)])
+        self.layers = nn.ModuleList(
+            [copy.deepcopy(decoder_layer) for i in range(num_layers)]
+        )
         self.num_layers = num_layers
         self.norm = nn.LayerNorm(decoder_layer.q_dim)
         self.return_intermediate = return_intermediate
@@ -227,14 +253,17 @@ class TransformerDecoder(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
-    def forward(self, queries, features,
-            q_attn_mask: Optional[Tensor] = None,
-            qk_attn_mask: Optional[Tensor] = None,
-            q_padding_mask: Optional[Tensor] = None,
-            kv_padding_mask: Optional[Tensor] = None,
-            q_pos: Optional[Tensor] = None,
-            k_pos: Optional[Tensor] = None,
-        ):
+    def forward(
+        self,
+        queries,
+        features,
+        q_attn_mask: Optional[Tensor] = None,
+        qk_attn_mask: Optional[Tensor] = None,
+        q_padding_mask: Optional[Tensor] = None,
+        kv_padding_mask: Optional[Tensor] = None,
+        q_pos: Optional[Tensor] = None,
+        k_pos: Optional[Tensor] = None,
+    ):
         # Add support for zero layers
         if self.num_layers == 0:
             return queries.unsqueeze(0)
@@ -247,12 +276,14 @@ class TransformerDecoder(nn.Module):
         intermediate = []
         for layer in self.layers:
             output = layer(
-                output, features,
+                output,
+                features,
                 q_attn_mask=q_attn_mask,
                 qk_attn_mask=qk_attn_mask,
                 q_padding_mask=q_padding_mask,
                 kv_padding_mask=kv_padding_mask,
-                q_pos=q_pos, k_pos=k_pos,
+                q_pos=q_pos,
+                k_pos=k_pos,
             )
             if self.return_intermediate:
                 intermediate.append(self.norm(output))
@@ -265,15 +296,22 @@ class TransformerDecoder(nn.Module):
 
 
 def _get_relative_position_bias(
-    relative_position_bias_table: torch.Tensor, relative_position_index: torch.Tensor, window_size: List[int]
+    relative_position_bias_table: torch.Tensor,
+    relative_position_index: torch.Tensor,
+    window_size: List[int],
 ) -> torch.Tensor:
     N = window_size[0] * window_size[1]
     relative_position_bias = relative_position_bias_table[relative_position_index]  # type: ignore[index]
     relative_position_bias = relative_position_bias.view(N, N, -1)
-    relative_position_bias = relative_position_bias.permute(2, 0, 1).contiguous().unsqueeze(0)
+    relative_position_bias = (
+        relative_position_bias.permute(2, 0, 1).contiguous().unsqueeze(0)
+    )
     return relative_position_bias
 
-def stochastic_depth(input: Tensor, p: float, mode: str, training: bool = True) -> Tensor:
+
+def stochastic_depth(
+    input: Tensor, p: float, mode: str, training: bool = True
+) -> Tensor:
     """
     Implements the Stochastic Depth from `"Deep Networks with Stochastic Depth"
     <https://arxiv.org/abs/1603.09382>`_ used for randomly dropping residual
@@ -307,6 +345,7 @@ def stochastic_depth(input: Tensor, p: float, mode: str, training: bool = True) 
         noise.div_(survival_rate)
     return input * noise
 
+
 class StochasticDepth(nn.Module):
     def __init__(self, p: float, mode: str) -> None:
         super().__init__()
@@ -319,6 +358,7 @@ class StochasticDepth(nn.Module):
     def __repr__(self) -> str:
         s = f"{self.__class__.__name__}(p={self.p}, mode={self.mode})"
         return s
+
 
 def shifted_window_attention(
     input: Tensor,
@@ -373,8 +413,17 @@ def shifted_window_attention(
 
     # partition windows
     num_windows = (pad_H // window_size[0]) * (pad_W // window_size[1])
-    x = x.view(B, pad_H // window_size[0], window_size[0], pad_W // window_size[1], window_size[1], C)
-    x = x.permute(0, 1, 3, 2, 4, 5).reshape(B * num_windows, window_size[0] * window_size[1], C)  # B*nW, Ws*Ws, C
+    x = x.view(
+        B,
+        pad_H // window_size[0],
+        window_size[0],
+        pad_W // window_size[1],
+        window_size[1],
+        C,
+    )
+    x = x.permute(0, 1, 3, 2, 4, 5).reshape(
+        B * num_windows, window_size[0] * window_size[1], C
+    )  # B*nW, Ws*Ws, C
 
     # multi-head attention
     if logit_scale is not None and qkv_bias is not None:
@@ -382,7 +431,9 @@ def shifted_window_attention(
         length = qkv_bias.numel() // 3
         qkv_bias[length : 2 * length].zero_()
     qkv = F.linear(x, qkv_weight, qkv_bias)
-    qkv = qkv.reshape(x.size(0), x.size(1), 3, num_heads, C // num_heads).permute(2, 0, 3, 1, 4)
+    qkv = qkv.reshape(x.size(0), x.size(1), 3, num_heads, C // num_heads).permute(
+        2, 0, 3, 1, 4
+    )
     q, k, v = qkv[0], qkv[1], qkv[2]
     if logit_scale is not None:
         # cosine attention
@@ -398,18 +449,37 @@ def shifted_window_attention(
     if sum(shift_size) > 0:
         # generate attention mask
         attn_mask = x.new_zeros((pad_H, pad_W))
-        h_slices = ((0, -window_size[0]), (-window_size[0], -shift_size[0]), (-shift_size[0], None))
-        w_slices = ((0, -window_size[1]), (-window_size[1], -shift_size[1]), (-shift_size[1], None))
+        h_slices = (
+            (0, -window_size[0]),
+            (-window_size[0], -shift_size[0]),
+            (-shift_size[0], None),
+        )
+        w_slices = (
+            (0, -window_size[1]),
+            (-window_size[1], -shift_size[1]),
+            (-shift_size[1], None),
+        )
         count = 0
         for h in h_slices:
             for w in w_slices:
                 attn_mask[h[0] : h[1], w[0] : w[1]] = count
                 count += 1
-        attn_mask = attn_mask.view(pad_H // window_size[0], window_size[0], pad_W // window_size[1], window_size[1])
-        attn_mask = attn_mask.permute(0, 2, 1, 3).reshape(num_windows, window_size[0] * window_size[1])
+        attn_mask = attn_mask.view(
+            pad_H // window_size[0],
+            window_size[0],
+            pad_W // window_size[1],
+            window_size[1],
+        )
+        attn_mask = attn_mask.permute(0, 2, 1, 3).reshape(
+            num_windows, window_size[0] * window_size[1]
+        )
         attn_mask = attn_mask.unsqueeze(1) - attn_mask.unsqueeze(2)
-        attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
-        attn = attn.view(x.size(0) // num_windows, num_windows, num_heads, x.size(1), x.size(1))
+        attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(
+            attn_mask == 0, float(0.0)
+        )
+        attn = attn.view(
+            x.size(0) // num_windows, num_windows, num_heads, x.size(1), x.size(1)
+        )
         attn = attn + attn_mask.unsqueeze(1).unsqueeze(0)
         attn = attn.view(-1, num_heads, x.size(1), x.size(1))
 
@@ -421,7 +491,14 @@ def shifted_window_attention(
     x = F.dropout(x, p=dropout)
 
     # reverse windows
-    x = x.view(B, pad_H // window_size[0], pad_W // window_size[1], window_size[0], window_size[1], C)
+    x = x.view(
+        B,
+        pad_H // window_size[0],
+        pad_W // window_size[1],
+        window_size[0],
+        window_size[1],
+        C,
+    )
     x = x.permute(0, 1, 3, 2, 4, 5).reshape(B, pad_H, pad_W, C)
 
     # reverse cyclic shift
@@ -431,6 +508,7 @@ def shifted_window_attention(
     # unpad features
     x = x[:, :H, :W, :].contiguous()
     return x
+
 
 class ShiftedWindowAttention(nn.Module):
     def __init__(
@@ -462,7 +540,10 @@ class ShiftedWindowAttention(nn.Module):
     def define_relative_position_bias_table(self):
         # define a parameter table of relative position bias
         self.relative_position_bias_table = nn.Parameter(
-            torch.zeros((2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1), self.num_heads)
+            torch.zeros(
+                (2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1),
+                self.num_heads,
+            )
         )  # 2*Wh-1 * 2*Ww-1, nH
         nn.init.trunc_normal_(self.relative_position_bias_table, std=0.02)
 
@@ -472,8 +553,12 @@ class ShiftedWindowAttention(nn.Module):
         coords_w = torch.arange(self.window_size[1])
         coords = torch.stack(torch.meshgrid(coords_h, coords_w))  # 2, Wh, Ww
         coords_flatten = torch.flatten(coords, 1)  # 2, Wh*Ww
-        relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]  # 2, Wh*Ww, Wh*Ww
-        relative_coords = relative_coords.permute(1, 2, 0).contiguous()  # Wh*Ww, Wh*Ww, 2
+        relative_coords = (
+            coords_flatten[:, :, None] - coords_flatten[:, None, :]
+        )  # 2, Wh*Ww, Wh*Ww
+        relative_coords = relative_coords.permute(
+            1, 2, 0
+        ).contiguous()  # Wh*Ww, Wh*Ww, 2
         relative_coords[:, :, 0] += self.window_size[0] - 1  # shift to start from 0
         relative_coords[:, :, 1] += self.window_size[1] - 1
         relative_coords[:, :, 0] *= 2 * self.window_size[1] - 1
@@ -482,7 +567,9 @@ class ShiftedWindowAttention(nn.Module):
 
     def get_relative_position_bias(self) -> torch.Tensor:
         return _get_relative_position_bias(
-            self.relative_position_bias_table, self.relative_position_index, self.window_size  # type: ignore[arg-type]
+            self.relative_position_bias_table,
+            self.relative_position_index,
+            self.window_size,  # type: ignore[arg-type]
         )
 
     def forward(self, x: Tensor):
@@ -506,6 +593,7 @@ class ShiftedWindowAttention(nn.Module):
             qkv_bias=self.qkv.bias,
             proj_bias=self.proj.bias,
         )
+
 
 class ShiftedWindowAttentionV2(ShiftedWindowAttention):
     def __init__(
@@ -533,7 +621,9 @@ class ShiftedWindowAttentionV2(ShiftedWindowAttention):
         self.logit_scale = nn.Parameter(torch.log(10 * torch.ones((num_heads, 1, 1))))
         # mlp to generate continuous relative position bias
         self.cpb_mlp = nn.Sequential(
-            nn.Linear(2, 512, bias=True), nn.ReLU(inplace=True), nn.Linear(512, num_heads, bias=False)
+            nn.Linear(2, 512, bias=True),
+            nn.ReLU(inplace=True),
+            nn.Linear(512, num_heads, bias=False),
         )
         if qkv_bias:
             length = self.qkv.bias.numel() // 3
@@ -541,17 +631,27 @@ class ShiftedWindowAttentionV2(ShiftedWindowAttention):
 
     def define_relative_position_bias_table(self):
         # get relative_coords_table
-        relative_coords_h = torch.arange(-(self.window_size[0] - 1), self.window_size[0], dtype=torch.float32)
-        relative_coords_w = torch.arange(-(self.window_size[1] - 1), self.window_size[1], dtype=torch.float32)
-        relative_coords_table = torch.stack(torch.meshgrid(relative_coords_h, relative_coords_w))
-        relative_coords_table = relative_coords_table.permute(1, 2, 0).contiguous().unsqueeze(0)  # 1, 2*Wh-1, 2*Ww-1, 2
+        relative_coords_h = torch.arange(
+            -(self.window_size[0] - 1), self.window_size[0], dtype=torch.float32
+        )
+        relative_coords_w = torch.arange(
+            -(self.window_size[1] - 1), self.window_size[1], dtype=torch.float32
+        )
+        relative_coords_table = torch.stack(
+            torch.meshgrid(relative_coords_h, relative_coords_w)
+        )
+        relative_coords_table = (
+            relative_coords_table.permute(1, 2, 0).contiguous().unsqueeze(0)
+        )  # 1, 2*Wh-1, 2*Ww-1, 2
 
         relative_coords_table[:, :, :, 0] /= self.window_size[0] - 1
         relative_coords_table[:, :, :, 1] /= self.window_size[1] - 1
 
         relative_coords_table *= 8  # normalize to -8, 8
         relative_coords_table = (
-            torch.sign(relative_coords_table) * torch.log2(torch.abs(relative_coords_table) + 1.0) / 3.0
+            torch.sign(relative_coords_table)
+            * torch.log2(torch.abs(relative_coords_table) + 1.0)
+            / 3.0
         )
         self.register_buffer("relative_coords_table", relative_coords_table)
 
@@ -586,6 +686,7 @@ class ShiftedWindowAttentionV2(ShiftedWindowAttention):
             proj_bias=self.proj.bias,
             logit_scale=self.logit_scale,
         )
+
 
 class MLP(torch.nn.Sequential):
     """This block implements the multi-layer perceptron (MLP) module.
@@ -629,6 +730,7 @@ class MLP(torch.nn.Sequential):
 
         super().__init__(*layers)
 
+
 class SwinTransformerBlock(nn.Module):
     """
     Swin Transformer Block.
@@ -671,7 +773,13 @@ class SwinTransformerBlock(nn.Module):
         )
         self.stochastic_depth = StochasticDepth(stochastic_depth_prob, "row")
         self.norm2 = norm_layer(dim)
-        self.mlp = MLP(dim, [int(dim * mlp_ratio), dim], activation_layer=nn.GELU, inplace=None, dropout=dropout)
+        self.mlp = MLP(
+            dim,
+            [int(dim * mlp_ratio), dim],
+            activation_layer=nn.GELU,
+            inplace=None,
+            dropout=dropout,
+        )
 
         for m in self.mlp.modules():
             if isinstance(m, nn.Linear):
@@ -734,8 +842,8 @@ class SwinTransformerBlockV2(SwinTransformerBlock):
         x = x + self.stochastic_depth(self.norm2(self.mlp(x)))
         return x
 
-class SwinTransformer(nn.Module):
 
+class SwinTransformer(nn.Module):
     def __init__(self, dim, num_layers):
         """
         A feature stage consisting of a series of Swin Transformer V2 blocks.
@@ -754,22 +862,26 @@ class SwinTransformer(nn.Module):
         self.base_sd_prob = 0.2
 
         shift_size = [
-            [self.window_size // 2] * 2 if i % 2
-            else [0, 0] for i in range(self.depth)
+            [self.window_size // 2] * 2 if i % 2 else [0, 0] for i in range(self.depth)
         ]
         # TODO fix this hack
         # Use stochastic depth parameters from the third stage of Swin-T variant.
         # In practice, varying this value does not make a significant difference.
-        sd_prob = (torch.linspace(0, 1, 12)[10-num_layers:10] * self.base_sd_prob).tolist()
+        sd_prob = (
+            torch.linspace(0, 1, 12)[10 - num_layers : 10] * self.base_sd_prob
+        ).tolist()
 
         blocks: List[nn.Module] = []
         for i in range(self.depth):
-            blocks.append(SwinTransformerBlockV2(
-                dim=dim, num_heads=self.num_heads,
-                window_size=[self.window_size] * 2,
-                shift_size=shift_size[i],
-                stochastic_depth_prob=sd_prob[i]
-            ))
+            blocks.append(
+                SwinTransformerBlockV2(
+                    dim=dim,
+                    num_heads=self.num_heads,
+                    window_size=[self.window_size] * 2,
+                    shift_size=shift_size[i],
+                    stochastic_depth_prob=sd_prob[i],
+                )
+            )
         self.blocks = nn.Sequential(*blocks)
 
     def forward(self, x):

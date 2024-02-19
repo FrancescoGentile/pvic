@@ -14,7 +14,8 @@ import torchvision.ops.boxes as box_ops
 from torch import Tensor
 from typing import List, Tuple
 
-def compute_sinusoidal_pe(pos_tensor: Tensor, temperature: float = 10000.) -> Tensor:
+
+def compute_sinusoidal_pe(pos_tensor: Tensor, temperature: float = 10000.0) -> Tensor:
     """
     Compute positional embeddings for points or bounding boxes
 
@@ -37,15 +38,24 @@ def compute_sinusoidal_pe(pos_tensor: Tensor, temperature: float = 10000.) -> Te
     y_embed = pos_tensor[:, :, 1] * scale
     pos_x = x_embed[:, :, None] / dim_t
     pos_y = y_embed[:, :, None] / dim_t
-    pos_x = torch.stack((pos_x[:, :, 0::2].sin(), pos_x[:, :, 1::2].cos()), dim=3).flatten(2)
-    pos_y = torch.stack((pos_y[:, :, 0::2].sin(), pos_y[:, :, 1::2].cos()), dim=3).flatten(2)
+    pos_x = torch.stack(
+        (pos_x[:, :, 0::2].sin(), pos_x[:, :, 1::2].cos()), dim=3
+    ).flatten(2)
+    pos_y = torch.stack(
+        (pos_y[:, :, 0::2].sin(), pos_y[:, :, 1::2].cos()), dim=3
+    ).flatten(2)
     pos = torch.cat((pos_y, pos_x), dim=2)
     return pos
 
+
 def prepare_region_proposals(
-    results, hidden_states, image_sizes,
-    box_score_thresh, human_idx,
-    min_instances, max_instances
+    results,
+    hidden_states,
+    image_sizes,
+    box_score_thresh,
+    human_idx,
+    min_instances,
+    max_instances,
 ):
     region_props = []
     for res, hs, sz in zip(results, hidden_states, image_sizes):
@@ -67,7 +77,8 @@ def prepare_region_proposals(
         is_human = lb == human_idx
         hum = torch.nonzero(is_human).squeeze(1)
         obj = torch.nonzero(is_human == 0).squeeze(1)
-        n_human = is_human[keep].sum(); n_object = len(keep) - n_human
+        n_human = is_human[keep].sum()
+        n_object = len(keep) - n_human
         # Keep the number of human and object instances in a specified interval
         if n_human < min_instances:
             keep_h = sc[hum].argsort(descending=True)[:min_instances]
@@ -91,14 +102,14 @@ def prepare_region_proposals(
 
         keep = torch.cat([keep_h, keep_o])
 
-        region_props.append(dict(
-            boxes=bx[keep],
-            scores=sc[keep],
-            labels=lb[keep],
-            hidden_states=hs[keep]
-        ))
+        region_props.append(
+            dict(
+                boxes=bx[keep], scores=sc[keep], labels=lb[keep], hidden_states=hs[keep]
+            )
+        )
 
     return region_props
+
 
 def associate_with_ground_truth(boxes, paired_inds, targets, num_classes, thresh=0.5):
     labels = []
@@ -109,14 +120,15 @@ def associate_with_ground_truth(boxes, paired_inds, targets, num_classes, thresh
         gt_bx_h = recover_boxes(target["boxes_h"], target["size"])
         gt_bx_o = recover_boxes(target["boxes_o"], target["size"])
 
-        x, y = torch.nonzero(torch.min(
-            box_ops.box_iou(bx_h, gt_bx_h),
-            box_ops.box_iou(bx_o, gt_bx_o)
-        ) >= thresh).unbind(1)
+        x, y = torch.nonzero(
+            torch.min(box_ops.box_iou(bx_h, gt_bx_h), box_ops.box_iou(bx_o, gt_bx_o))
+            >= thresh
+        ).unbind(1)
         is_match[x, target["labels"][y]] = 1
 
         labels.append(is_match)
     return torch.cat(labels)
+
 
 def recover_boxes(boxes, size):
     boxes = box_cxcywh_to_xyxy(boxes)
@@ -125,17 +137,18 @@ def recover_boxes(boxes, size):
     boxes = boxes * scale_fct
     return boxes
 
+
 def box_cxcywh_to_xyxy(x):
     x_c, y_c, w, h = x.unbind(-1)
-    b = [(x_c - 0.5 * w), (y_c - 0.5 * h),
-         (x_c + 0.5 * w), (y_c + 0.5 * h)]
+    b = [(x_c - 0.5 * w), (y_c - 0.5 * h), (x_c + 0.5 * w), (y_c + 0.5 * h)]
     return torch.stack(b, dim=-1)
+
 
 def box_xyxy_to_cxcywh(x):
     x0, y0, x1, y1 = x.unbind(-1)
-    b = [(x0 + x1) / 2, (y0 + y1) / 2,
-         (x1 - x0), (y1 - y0)]
+    b = [(x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0), (y1 - y0)]
     return torch.stack(b, dim=-1)
+
 
 def pad_queries(queries):
     b = len(queries)
@@ -151,11 +164,15 @@ def pad_queries(queries):
         q_padding_mask[i, n:] = True
     return padded_queries, q_padding_mask
 
+
 def compute_prior_scores(
-    x: Tensor, y: Tensor,
-    scores: Tensor, labels: Tensor,
-    num_classes: int, is_training: bool,
-    obj_cls_to_tgt_cls: list
+    x: Tensor,
+    y: Tensor,
+    scores: Tensor,
+    labels: Tensor,
+    num_classes: int,
+    is_training: bool,
+    obj_cls_to_tgt_cls: list,
 ) -> Tensor:
     prior_h = torch.zeros(len(x), num_classes, device=scores.device)
     prior_o = torch.zeros_like(prior_h)
@@ -165,8 +182,7 @@ def compute_prior_scores(
 
     # Map object class index to target class index
     # Object class index to target class index is a one-to-many mapping
-    target_cls_idx = [obj_cls_to_tgt_cls[obj.item()]
-        for obj in labels[y]]
+    target_cls_idx = [obj_cls_to_tgt_cls[obj.item()] for obj in labels[y]]
     # Duplicate box pair indices for each target class
     pair_idx = [i for i, tar in enumerate(target_cls_idx) for _ in tar]
     # Flatten mapped target indices
@@ -177,9 +193,12 @@ def compute_prior_scores(
 
     return torch.stack([prior_h, prior_o], dim=1)
 
+
 def compute_spatial_encodings(
-    boxes_1: List[Tensor], boxes_2: List[Tensor],
-    shapes: List[Tuple[int, int]], eps: float = 1e-10
+    boxes_1: List[Tensor],
+    boxes_2: List[Tensor],
+    shapes: List[Tuple[int, int]],
+    eps: float = 1e-10,
 ) -> Tensor:
     """
     Parameters:
@@ -202,11 +221,15 @@ def compute_spatial_encodings(
     for b1, b2, shape in zip(boxes_1, boxes_2, shapes):
         h, w = shape
 
-        c1_x = (b1[:, 0] + b1[:, 2]) / 2; c1_y = (b1[:, 1] + b1[:, 3]) / 2
-        c2_x = (b2[:, 0] + b2[:, 2]) / 2; c2_y = (b2[:, 1] + b2[:, 3]) / 2
+        c1_x = (b1[:, 0] + b1[:, 2]) / 2
+        c1_y = (b1[:, 1] + b1[:, 3]) / 2
+        c2_x = (b2[:, 0] + b2[:, 2]) / 2
+        c2_y = (b2[:, 1] + b2[:, 3]) / 2
 
-        b1_w = b1[:, 2] - b1[:, 0]; b1_h = b1[:, 3] - b1[:, 1]
-        b2_w = b2[:, 2] - b2[:, 0]; b2_h = b2[:, 3] - b2[:, 1]
+        b1_w = b1[:, 2] - b1[:, 0]
+        b1_h = b1[:, 3] - b1[:, 1]
+        b2_w = b2[:, 2] - b2[:, 0]
+        b2_h = b2[:, 3] - b2[:, 1]
 
         d_x = torch.abs(c2_x - c1_x) / (b1_w + eps)
         d_y = torch.abs(c2_y - c1_y) / (b1_h + eps)
@@ -214,36 +237,47 @@ def compute_spatial_encodings(
         iou = torch.diag(box_ops.box_iou(b1, b2))
 
         # Construct spatial encoding
-        f = torch.stack([
-            # Relative position of box centre
-            c1_x / w, c1_y / h, c2_x / w, c2_y / h,
-            # Relative box width and height
-            b1_w / w, b1_h / h, b2_w / w, b2_h / h,
-            # Relative box area
-            b1_w * b1_h / (h * w), b2_w * b2_h / (h * w),
-            b2_w * b2_h / (b1_w * b1_h + eps),
-            # Box aspect ratio
-            b1_w / (b1_h + eps), b2_w / (b2_h + eps),
-            # Intersection over union
-            iou,
-            # Relative distance and direction of the object w.r.t. the person
-            (c2_x > c1_x).float() * d_x,
-            (c2_x < c1_x).float() * d_x,
-            (c2_y > c1_y).float() * d_y,
-            (c2_y < c1_y).float() * d_y,
-        ], 1)
-
-        features.append(
-            torch.cat([f, torch.log(f + eps)], 1)
+        f = torch.stack(
+            [
+                # Relative position of box centre
+                c1_x / w,
+                c1_y / h,
+                c2_x / w,
+                c2_y / h,
+                # Relative box width and height
+                b1_w / w,
+                b1_h / h,
+                b2_w / w,
+                b2_h / h,
+                # Relative box area
+                b1_w * b1_h / (h * w),
+                b2_w * b2_h / (h * w),
+                b2_w * b2_h / (b1_w * b1_h + eps),
+                # Box aspect ratio
+                b1_w / (b1_h + eps),
+                b2_w / (b2_h + eps),
+                # Intersection over union
+                iou,
+                # Relative distance and direction of the object w.r.t. the person
+                (c2_x > c1_x).float() * d_x,
+                (c2_x < c1_x).float() * d_x,
+                (c2_y > c1_y).float() * d_y,
+                (c2_y < c1_y).float() * d_y,
+            ],
+            1,
         )
+
+        features.append(torch.cat([f, torch.log(f + eps)], 1))
     return torch.cat(features)
 
+
 def binary_focal_loss_with_logits(
-    x: Tensor, y: Tensor,
+    x: Tensor,
+    y: Tensor,
     alpha: float = 0.5,
     gamma: float = 2.0,
-    reduction: str = 'mean',
-    eps: float = 1e-6
+    reduction: str = "mean",
+    eps: float = 1e-6,
 ) -> Tensor:
     """
     Focal loss by Lin et al.
@@ -271,15 +305,16 @@ def binary_focal_loss_with_logits(
     loss: Tensor
         Computed loss tensor
     """
-    loss = (1 - y - alpha).abs() * ((y-torch.sigmoid(x)).abs() + eps) ** gamma * \
-        torch.nn.functional.binary_cross_entropy_with_logits(
-            x, y, reduction='none'
-        )
-    if reduction == 'mean':
+    loss = (
+        (1 - y - alpha).abs()
+        * ((y - torch.sigmoid(x)).abs() + eps) ** gamma
+        * torch.nn.functional.binary_cross_entropy_with_logits(x, y, reduction="none")
+    )
+    if reduction == "mean":
         return loss.mean()
-    elif reduction == 'sum':
+    elif reduction == "sum":
         return loss.sum()
-    elif reduction == 'none':
+    elif reduction == "none":
         return loss
     else:
         raise ValueError("Unsupported reduction method {}".format(reduction))

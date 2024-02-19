@@ -20,6 +20,7 @@ import torchvision.transforms.functional as TF
 
 from PIL import Image
 
+
 def plot_pe_attn():
     mask = torch.zeros(1, 50, 50).bool()
     src = torch.rand(1, 256, 50, 50)
@@ -31,7 +32,7 @@ def plot_pe_attn():
     points = torch.as_tensor([[[0.5, 0.5]]])
     q_pe_w = torch.rand(256, 256)
     q_pe = compute_sinusoidal_pe(points, temperature=20)
-    q_pe[..., :128] *= .5
+    q_pe[..., :128] *= 0.5
     q_pe[..., 128:] *= 2
 
     print(f"x={points[0, 0, 0]}, y={points[0, 0, 1]}")
@@ -47,30 +48,33 @@ def plot_pe_attn():
 
     fig, ax = plt.subplots()
     divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
     im = ax.imshow(dp[0], cmap="Blues")
-    fig.colorbar(im, cax=cax, orientation='vertical')
+    fig.colorbar(im, cax=cax, orientation="vertical")
     plt.savefig("attn.png")
 
-def vis_attn_weights():
 
+def vis_attn_weights():
     rgb1 = sns.color_palette(n_colors=2)[1]
     # rgb2 = sns.color_palette("bright", n_colors=2)[0]
     rgb2 = (254 / 255, 254 / 255, 114 / 255)
 
     cdict = {
-        "red": ((0., 0., 0.),
-                (.5, rgb1[0], rgb1[0]),
-                (1., rgb2[0], rgb2[0])),
-        "green": ((0., 0., 0.),
-                  (.5, rgb1[1], rgb1[1]),
-                  (1., rgb2[1], rgb2[1])),
-        "blue": ((0., 0., 0.),
-                 (.5, rgb1[2], rgb1[2]),
-                 (1., rgb2[2], rgb2[2])),
-        "alpha":
-                ((0., 0., 0.,),
-                 (1., .8, .8,))
+        "red": ((0.0, 0.0, 0.0), (0.5, rgb1[0], rgb1[0]), (1.0, rgb2[0], rgb2[0])),
+        "green": ((0.0, 0.0, 0.0), (0.5, rgb1[1], rgb1[1]), (1.0, rgb2[1], rgb2[1])),
+        "blue": ((0.0, 0.0, 0.0), (0.5, rgb1[2], rgb1[2]), (1.0, rgb2[2], rgb2[2])),
+        "alpha": (
+            (
+                0.0,
+                0.0,
+                0.0,
+            ),
+            (
+                1.0,
+                0.8,
+                0.8,
+            ),
+        ),
     }
     my_cmap = LinearSegmentedColormap("MyCMap", cdict)
 
@@ -78,8 +82,7 @@ def vis_attn_weights():
     dets = torch.load("r50_dec2_dets_7680.pt")
 
     dataset = HICODet(
-        "hicodet/hico_20160224_det/images/test2015",
-        "hicodet/instances_test2015.json"
+        "hicodet/hico_20160224_det/images/test2015", "hicodet/instances_test2015.json"
     )
     image, _ = dataset[7680]
 
@@ -93,13 +96,21 @@ def vis_attn_weights():
 
     h, w = (dets[0]["size"] / 32).ceil().long()
     attn_map = attn[0, 7, dets[0]["x"][idx]].reshape(1, 1, h, w)
-    attn_map = torch.nn.functional.interpolate(attn_map, size=(image.height, image.width),
-                                               mode="bilinear", align_corners=True
-                                               )
+    attn_map = torch.nn.functional.interpolate(
+        attn_map, size=(image.height, image.width), mode="bilinear", align_corners=True
+    )
     plt.imshow(image)
     attn_image = attn_map[0, 0]
     ax = plt.gca()
-    sns.heatmap(attn_image.numpy(), alpha=0.6, ax=ax, xticklabels=False, yticklabels=False, cbar=False, cmap=my_cmap)
+    sns.heatmap(
+        attn_image.numpy(),
+        alpha=0.6,
+        ax=ax,
+        xticklabels=False,
+        yticklabels=False,
+        cbar=False,
+        cmap=my_cmap,
+    )
     plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
     plt.margins(0, 0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
@@ -107,24 +118,28 @@ def vis_attn_weights():
     plt.savefig(f"attn_64.png", bbox_inches="tight", pad_inches=0)
     plt.close()
 
+
 def vis_detr_attn_weights():
     rgb1 = sns.color_palette(n_colors=2)[1]
     # rgb2 = sns.color_palette("bright", n_colors=2)[0]
     rgb2 = (254 / 255, 254 / 255, 114 / 255)
 
     cdict = {
-        "red": ((0., 0., 0.),
-                (.5, rgb1[0], rgb1[0]),
-                (1., rgb2[0], rgb2[0])),
-        "green": ((0., 0., 0.),
-                  (.5, rgb1[1], rgb1[1]),
-                  (1., rgb2[1], rgb2[1])),
-        "blue": ((0., 0., 0.),
-                 (.5, rgb1[2], rgb1[2]),
-                 (1., rgb2[2], rgb2[2])),
-        "alpha":
-                ((0., 0., 0.,),
-                 (1., .8, .8,))
+        "red": ((0.0, 0.0, 0.0), (0.5, rgb1[0], rgb1[0]), (1.0, rgb2[0], rgb2[0])),
+        "green": ((0.0, 0.0, 0.0), (0.5, rgb1[1], rgb1[1]), (1.0, rgb2[1], rgb2[1])),
+        "blue": ((0.0, 0.0, 0.0), (0.5, rgb1[2], rgb1[2]), (1.0, rgb2[2], rgb2[2])),
+        "alpha": (
+            (
+                0.0,
+                0.0,
+                0.0,
+            ),
+            (
+                1.0,
+                0.8,
+                0.8,
+            ),
+        ),
     }
     my_cmap = LinearSegmentedColormap("MyCMap", cdict)
 
@@ -135,8 +150,7 @@ def vis_detr_attn_weights():
 
     dets = torch.load("dets.pth", map_location="cpu")
     dataset = HICODet(
-        "hicodet/hico_20160224_det/images/test2015",
-        "hicodet/instances_test2015.json"
+        "hicodet/hico_20160224_det/images/test2015", "hicodet/instances_test2015.json"
     )
     image, _ = dataset[4050]
 
@@ -148,7 +162,8 @@ def vis_detr_attn_weights():
 
     h, w = (dets[0]["size"] / 32).ceil().long()
 
-    image_h = image.copy(); image_o = image.copy()
+    image_h = image.copy()
+    image_o = image.copy()
     pocket.utils.draw_boxes(image_h, bh[None], width=3)
     pocket.utils.draw_boxes(image_o, bo[None], width=3)
 
@@ -156,15 +171,25 @@ def vis_detr_attn_weights():
     bh_attn = bh_attn.reshape(1, 1, h, w)
     bo_attn = bo_attn.reshape(1, 1, h, w)
 
-    bh_attn = torch.nn.functional.interpolate(bh_attn, size=(image.height, image.width),
-                                              mode="bilinear", align_corners=True)
-    bo_attn = torch.nn.functional.interpolate(bo_attn, size=(image.height, image.width),
-                                              mode="bilinear", align_corners=True)
+    bh_attn = torch.nn.functional.interpolate(
+        bh_attn, size=(image.height, image.width), mode="bilinear", align_corners=True
+    )
+    bo_attn = torch.nn.functional.interpolate(
+        bo_attn, size=(image.height, image.width), mode="bilinear", align_corners=True
+    )
 
     plt.imshow(image_h)
     attn_image = bh_attn[0, 0]
     ax = plt.gca()
-    sns.heatmap(attn_image.numpy(), alpha=0.6, ax=ax, xticklabels=False, yticklabels=False, cbar=False, cmap=my_cmap)
+    sns.heatmap(
+        attn_image.numpy(),
+        alpha=0.6,
+        ax=ax,
+        xticklabels=False,
+        yticklabels=False,
+        cbar=False,
+        cmap=my_cmap,
+    )
     plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
     plt.margins(0, 0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
@@ -175,7 +200,15 @@ def vis_detr_attn_weights():
     plt.imshow(image_o)
     attn_image = bo_attn[0, 0]
     ax = plt.gca()
-    sns.heatmap(attn_image.numpy(), alpha=0.6, ax=ax, xticklabels=False, yticklabels=False, cbar=False, cmap=my_cmap)
+    sns.heatmap(
+        attn_image.numpy(),
+        alpha=0.6,
+        ax=ax,
+        xticklabels=False,
+        yticklabels=False,
+        cbar=False,
+        cmap=my_cmap,
+    )
     plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
     plt.margins(0, 0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
@@ -183,24 +216,28 @@ def vis_detr_attn_weights():
     plt.savefig(f"object_attn.png", bbox_inches="tight", pad_inches=0)
     plt.close()
 
+
 def visualise_qpic_attn_weights():
     rgb1 = sns.color_palette(n_colors=2)[1]
     # rgb2 = sns.color_palette("bright", n_colors=2)[0]
     rgb2 = (254 / 255, 254 / 255, 114 / 255)
 
     cdict = {
-        "red": ((0., 0., 0.),
-                (.5, rgb1[0], rgb1[0]),
-                (1., rgb2[0], rgb2[0])),
-        "green": ((0., 0., 0.),
-                  (.5, rgb1[1], rgb1[1]),
-                  (1., rgb2[1], rgb2[1])),
-        "blue": ((0., 0., 0.),
-                 (.5, rgb1[2], rgb1[2]),
-                 (1., rgb2[2], rgb2[2])),
-        "alpha":
-                ((0., 0., 0.,),
-                 (1., .8, .8,))
+        "red": ((0.0, 0.0, 0.0), (0.5, rgb1[0], rgb1[0]), (1.0, rgb2[0], rgb2[0])),
+        "green": ((0.0, 0.0, 0.0), (0.5, rgb1[1], rgb1[1]), (1.0, rgb2[1], rgb2[1])),
+        "blue": ((0.0, 0.0, 0.0), (0.5, rgb1[2], rgb1[2]), (1.0, rgb2[2], rgb2[2])),
+        "alpha": (
+            (
+                0.0,
+                0.0,
+                0.0,
+            ),
+            (
+                1.0,
+                0.8,
+                0.8,
+            ),
+        ),
     }
     my_cmap = LinearSegmentedColormap("MyCMap", cdict)
 
@@ -208,8 +245,7 @@ def visualise_qpic_attn_weights():
 
     dets = torch.load("qpic_dets.pt", map_location="cpu")
     dataset = HICODet(
-        "hicodet/hico_20160224_det/images/test2015",
-        "hicodet/instances_test2015.json"
+        "hicodet/hico_20160224_det/images/test2015", "hicodet/instances_test2015.json"
     )
     image, _ = dataset[4050]
 
@@ -221,12 +257,21 @@ def visualise_qpic_attn_weights():
 
     vb_score = dets["verb_scores"][idx][111]
     attn = attn[0, idx].reshape(1, 1, 25, 38)
-    attn = torch.nn.functional.interpolate(attn, size=(image.height, image.width),
-                                              mode="bilinear", align_corners=True)
+    attn = torch.nn.functional.interpolate(
+        attn, size=(image.height, image.width), mode="bilinear", align_corners=True
+    )
     plt.imshow(image)
     attn_image = attn[0, 0]
     ax = plt.gca()
-    sns.heatmap(attn_image.numpy(), alpha=0.6, ax=ax, xticklabels=False, yticklabels=False, cbar=False, cmap=my_cmap)
+    sns.heatmap(
+        attn_image.numpy(),
+        alpha=0.6,
+        ax=ax,
+        xticklabels=False,
+        yticklabels=False,
+        cbar=False,
+        cmap=my_cmap,
+    )
     plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
     plt.margins(0, 0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
@@ -236,36 +281,39 @@ def visualise_qpic_attn_weights():
 
 
 def vis_all_attn_weights():
-
     rgb1 = sns.color_palette(n_colors=2)[1]
     # rgb2 = sns.color_palette("bright", n_colors=2)[0]
     rgb2 = (254 / 255, 254 / 255, 114 / 255)
 
     cdict = {
-        "red": ((0., 0., 0.),
-                (.5, rgb1[0], rgb1[0]),
-                (1., rgb2[0], rgb2[0])),
-        "green": ((0., 0., 0.),
-                  (.5, rgb1[1], rgb1[1]),
-                  (1., rgb2[1], rgb2[1])),
-        "blue": ((0., 0., 0.),
-                 (.5, rgb1[2], rgb1[2]),
-                 (1., rgb2[2], rgb2[2])),
-        "alpha":
-                ((0., 0., 0.,),
-                 (1., .8, .8,))
+        "red": ((0.0, 0.0, 0.0), (0.5, rgb1[0], rgb1[0]), (1.0, rgb2[0], rgb2[0])),
+        "green": ((0.0, 0.0, 0.0), (0.5, rgb1[1], rgb1[1]), (1.0, rgb2[1], rgb2[1])),
+        "blue": ((0.0, 0.0, 0.0), (0.5, rgb1[2], rgb1[2]), (1.0, rgb2[2], rgb2[2])),
+        "alpha": (
+            (
+                0.0,
+                0.0,
+                0.0,
+            ),
+            (
+                1.0,
+                0.8,
+                0.8,
+            ),
+        ),
     }
     my_cmap = LinearSegmentedColormap("MyCMap", cdict)
 
     attn = torch.load("r50_dec2_attn_4050.pt")
     c_and_p = attn["c_and_p"]
-    c = attn["c"]; p = attn["p"]
-    cp = attn["cp"]; pc = attn["pc"]
+    c = attn["c"]
+    p = attn["p"]
+    cp = attn["cp"]
+    pc = attn["pc"]
 
     dets = torch.load("dets.pth", map_location="cpu")
     dataset = HICODet(
-        "hicodet/hico_20160224_det/images/test2015",
-        "hicodet/instances_test2015.json"
+        "hicodet/hico_20160224_det/images/test2015", "hicodet/instances_test2015.json"
     )
     image, _ = dataset[4050]
 
@@ -280,13 +328,22 @@ def vis_all_attn_weights():
     h, w = (dets[0]["size"] / 32).ceil().long()
 
     c_and_p = c_and_p[:, :, dets[0]["x"][idx]].reshape(1, 8, h, w)
-    c_and_p = torch.nn.functional.interpolate(c_and_p, size=(image.height, image.width),
-                                              mode="bilinear", align_corners=True)
+    c_and_p = torch.nn.functional.interpolate(
+        c_and_p, size=(image.height, image.width), mode="bilinear", align_corners=True
+    )
     for i in range(8):
         plt.imshow(image)
         attn_image = c_and_p[0, i]
         ax = plt.gca()
-        sns.heatmap(attn_image.numpy(), alpha=0.6, ax=ax, xticklabels=False, yticklabels=False, cbar=False, cmap=my_cmap)
+        sns.heatmap(
+            attn_image.numpy(),
+            alpha=0.6,
+            ax=ax,
+            xticklabels=False,
+            yticklabels=False,
+            cbar=False,
+            cmap=my_cmap,
+        )
         plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
         plt.margins(0, 0)
         plt.gca().xaxis.set_major_locator(plt.NullLocator())
@@ -295,13 +352,22 @@ def vis_all_attn_weights():
         plt.close()
 
     c = c[:, :, dets[0]["x"][idx]].reshape(1, 8, h, w)
-    c = torch.nn.functional.interpolate(c, size=(image.height, image.width),
-                                        mode="bilinear", align_corners=True)
+    c = torch.nn.functional.interpolate(
+        c, size=(image.height, image.width), mode="bilinear", align_corners=True
+    )
     for i in range(8):
         plt.imshow(image)
         attn_image = c[0, i]
         ax = plt.gca()
-        sns.heatmap(attn_image.numpy(), alpha=0.6,  ax=ax, xticklabels=False, yticklabels=False, cbar=False, cmap=my_cmap)
+        sns.heatmap(
+            attn_image.numpy(),
+            alpha=0.6,
+            ax=ax,
+            xticklabels=False,
+            yticklabels=False,
+            cbar=False,
+            cmap=my_cmap,
+        )
         plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
         plt.margins(0, 0)
         plt.gca().xaxis.set_major_locator(plt.NullLocator())
@@ -310,15 +376,24 @@ def vis_all_attn_weights():
         plt.close()
 
     p = p[:, :, dets[0]["x"][idx]].reshape(1, 8, h, w)
-    p = torch.nn.functional.interpolate(p, size=(image.height, image.width),
-                                        mode="bilinear", align_corners=True)
+    p = torch.nn.functional.interpolate(
+        p, size=(image.height, image.width), mode="bilinear", align_corners=True
+    )
     for i in range(8):
         plt.imshow(image)
         attn_image = p[0, i]
         # x, y = torch.nonzero(attn_image < 5e-4).unbind(1)
         # attn_image[x, y] = 0
         ax = plt.gca()
-        sns.heatmap(attn_image.numpy(), alpha=0.6,  ax=ax, xticklabels=False, yticklabels=False, cbar=False, cmap=my_cmap)
+        sns.heatmap(
+            attn_image.numpy(),
+            alpha=0.6,
+            ax=ax,
+            xticklabels=False,
+            yticklabels=False,
+            cbar=False,
+            cmap=my_cmap,
+        )
         plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
         plt.margins(0, 0)
         plt.gca().xaxis.set_major_locator(plt.NullLocator())
@@ -327,13 +402,22 @@ def vis_all_attn_weights():
         plt.close()
 
     cp = cp[:, :, dets[0]["x"][idx]].reshape(1, 8, h, w)
-    cp = torch.nn.functional.interpolate(cp, size=(image.height, image.width),
-                                        mode="bilinear", align_corners=True)
+    cp = torch.nn.functional.interpolate(
+        cp, size=(image.height, image.width), mode="bilinear", align_corners=True
+    )
     for i in range(8):
         plt.imshow(image)
         attn_image = cp[0, i]
         ax = plt.gca()
-        sns.heatmap(attn_image.numpy(), alpha=0.6,  ax=ax, xticklabels=False, yticklabels=False, cbar=False, cmap=my_cmap)
+        sns.heatmap(
+            attn_image.numpy(),
+            alpha=0.6,
+            ax=ax,
+            xticklabels=False,
+            yticklabels=False,
+            cbar=False,
+            cmap=my_cmap,
+        )
         plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
         plt.margins(0, 0)
         plt.gca().xaxis.set_major_locator(plt.NullLocator())
@@ -342,13 +426,22 @@ def vis_all_attn_weights():
         plt.close()
 
     pc = pc[:, :, dets[0]["x"][idx]].reshape(1, 8, h, w)
-    pc = torch.nn.functional.interpolate(pc, size=(image.height, image.width),
-                                        mode="bilinear", align_corners=True)
+    pc = torch.nn.functional.interpolate(
+        pc, size=(image.height, image.width), mode="bilinear", align_corners=True
+    )
     for i in range(8):
         plt.imshow(image)
         attn_image = pc[0, i]
         ax = plt.gca()
-        sns.heatmap(attn_image.numpy(), alpha=0.6,  ax=ax, xticklabels=False, yticklabels=False, cbar=False, cmap=my_cmap)
+        sns.heatmap(
+            attn_image.numpy(),
+            alpha=0.6,
+            ax=ax,
+            xticklabels=False,
+            yticklabels=False,
+            cbar=False,
+            cmap=my_cmap,
+        )
         plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
         plt.margins(0, 0)
         plt.gca().xaxis.set_major_locator(plt.NullLocator())
@@ -358,14 +451,14 @@ def vis_all_attn_weights():
 
     # image.save("detection.png")
 
+
 def vis_all_attn_weights_manually():
-    attn = torch.load("qk.pth", map_location='cpu')
-    dets = torch.load("dets.pth", map_location='cpu')
+    attn = torch.load("qk.pth", map_location="cpu")
+    dets = torch.load("dets.pth", map_location="cpu")
     avg_attn = torch.load("attn.pth", map_location="cpu")
 
     dataset = HICODet(
-        "hicodet/hico_20160224_det/images/test2015",
-        "hicodet/instances_test2015.json"
+        "hicodet/hico_20160224_det/images/test2015", "hicodet/instances_test2015.json"
     )
     image, _ = dataset[998]
 
@@ -380,16 +473,16 @@ def vis_all_attn_weights_manually():
     p_idx = dets[0]["x"][idx]
     h, w = (dets[0]["size"] / 32).ceil().long()
 
-    q = attn["q"]; k = attn["k"]
-    q_p = attn["q_p"]; k_p = attn["k_p"]
+    q = attn["q"]
+    k = attn["k"]
+    q_p = attn["q_p"]
+    k_p = attn["k_p"]
     attn_c = torch.bmm(
-        q.view(-1, 8, 48).permute(1, 0, 2),
-        k.view(-1, 8, 48).permute(1, 2, 0)
-    ) / (96 ** -0.5)
+        q.view(-1, 8, 48).permute(1, 0, 2), k.view(-1, 8, 48).permute(1, 2, 0)
+    ) / (96**-0.5)
     attn_p = torch.bmm(
-        q_p.view(-1, 8, 48).permute(1, 0, 2),
-        k_p.view(-1, 8, 48).permute(1, 2, 0)
-    ) / (96 ** -0.5)
+        q_p.view(-1, 8, 48).permute(1, 0, 2), k_p.view(-1, 8, 48).permute(1, 2, 0)
+    ) / (96**-0.5)
     attn_combine = attn_c + attn_p
 
     attn_c = attn_c.softmax(-1)[:, p_idx].view(8, 1, h, w)
@@ -397,10 +490,21 @@ def vis_all_attn_weights_manually():
     attn_combine = attn_combine.softmax(-1)[:, p_idx].view(8, 1, h, w)
     avg_attn = avg_attn[0, p_idx].view(1, 1, h, w)
 
-    attn_c = torch.nn.functional.interpolate(attn_c, size=(image.height, image.width), mode="bilinear")
-    attn_p = torch.nn.functional.interpolate(attn_p, size=(image.height, image.width), mode="bilinear")
-    attn_combine = torch.nn.functional.interpolate(attn_combine, size=(image.height, image.width), mode="bilinear")
-    avg_attn = torch.nn.functional.interpolate(avg_attn, size=(image.height, image.width), mode="bilinear") * 10
+    attn_c = torch.nn.functional.interpolate(
+        attn_c, size=(image.height, image.width), mode="bilinear"
+    )
+    attn_p = torch.nn.functional.interpolate(
+        attn_p, size=(image.height, image.width), mode="bilinear"
+    )
+    attn_combine = torch.nn.functional.interpolate(
+        attn_combine, size=(image.height, image.width), mode="bilinear"
+    )
+    avg_attn = (
+        torch.nn.functional.interpolate(
+            avg_attn, size=(image.height, image.width), mode="bilinear"
+        )
+        * 10
+    )
 
     def organise_in_grid(x, h, w):
         assert h * w == x.shape[0]
@@ -408,6 +512,7 @@ def vis_all_attn_weights_manually():
         x = x.split(w, 0)
         x = torch.cat([x_.permute(1, 0, 2).reshape(ih, iw * w) for x_ in x], dim=0)
         return x
+
     def convert_single_channel_mask_to_image(x, c=0):
         assert x.shape[0] == 1 and x.ndim == 3
         image = torch.zeros(3, *x.shape[1:])
@@ -441,11 +546,16 @@ def vis_all_attn_weights_manually():
     image_p.save("positional_attn.png")
     image_combine.save("combined_attn.png")
 
+
 def generate_box_binary_mask():
-    boxes = [torch.as_tensor([
-        [20., 120., 430., 390.],
-        [45.7, 201.6, 298.3, 512.4],
-    ])]
+    boxes = [
+        torch.as_tensor(
+            [
+                [20.0, 120.0, 430.0, 390.0],
+                [45.7, 201.6, 298.3, 512.4],
+            ]
+        )
+    ]
     image_sizes = torch.as_tensor([[480, 640]]).long()
     dest_sizes = torch.as_tensor([[15, 20]]).long()
 
@@ -460,13 +570,14 @@ def generate_box_binary_mask():
 
         m = torch.ones(len(x1), *out_sz.tolist(), device=bx.device, dtype=torch.bool)
         for i in range(len(m)):
-            m[i, y1[i]: y2[i], x1[i]: x2[i]] = False
+            m[i, y1[i] : y2[i], x1[i] : x2[i]] = False
         j += 1
 
         merge = m.prod(0).bool()
         image = TF.to_pil_image(merge.unsqueeze(0).repeat(3, 1, 1).float())
         # pocket.utils.draw_boxes(image, bx, outline=(255, 0, 0))
         image.save("mask.png")
+
 
 def show_masks():
     h, w = 21, 28
@@ -477,18 +588,24 @@ def show_masks():
         plt.savefig(f"mask_{i}_{m.sum().item()}.png")
         plt.close()
 
+
 def test_clip(images, vlm, targets):
     x = images.type(vlm.dtype)
-    x = vlm.visual.conv1(x)                # bs, c, h, w
-    x = x.reshape(x.shape[0], x.shape[1], -1)   # bs, c, hw
-    x = x.permute(0, 2, 1)                      # bs, hw, c
-    x = torch.cat([vlm.visual.class_embedding.to(x.dtype) + torch.zeros(
-        x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device
-    ), x], dim=1)                               # bs, hw + 1, c
+    x = vlm.visual.conv1(x)  # bs, c, h, w
+    x = x.reshape(x.shape[0], x.shape[1], -1)  # bs, c, hw
+    x = x.permute(0, 2, 1)  # bs, hw, c
+    x = torch.cat(
+        [
+            vlm.visual.class_embedding.to(x.dtype)
+            + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device),
+            x,
+        ],
+        dim=1,
+    )  # bs, hw + 1, c
     x = x + vlm.visual.positional_embedding.to(x.dtype)
     x = vlm.visual.ln_pre(x)
 
-    x = x.permute(1, 0, 2)                      # hw + 1, bs, c
+    x = x.permute(1, 0, 2)  # hw + 1, bs, c
 
     # Expand the transformer forward method.
     for layer in vlm.visual.transformer.resblocks[:-1]:
@@ -503,7 +620,7 @@ def test_clip(images, vlm, targets):
     x = x + last.attn(x_, x_, x_, need_weights=False)[0]
     x = x + last.mlp(last.ln_2(x))
 
-    x = x.permute(1, 0, 2)                      # bs, hw + 1, c
+    x = x.permute(1, 0, 2)  # bs, hw + 1, c
 
     x = vlm.visual.ln_post(x[:, 0, :])
     x = x @ vlm.visual.proj
@@ -516,6 +633,7 @@ def test_clip(images, vlm, targets):
     logit_scale = vlm.logit_scale.exp()
     logits_per_image = logit_scale * x @ t.t()
     return logits_per_image
+
 
 if __name__ == "__main__":
     # vis_detr_attn_weights()
