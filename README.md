@@ -20,7 +20,7 @@ This repository contains the official PyTorch implementation for the paper
     # Required dependencies
     pip install torch==1.8.0+cu111 torchvision==0.9.0+cu111 -f https://download.pytorch.org/whl/torch_stable.html
     pip install matplotlib==3.6.3 scipy==1.10.0 tqdm==4.64.1
-    pip install numpy==1.24.1 timm==0.6.12
+    pip install numpy==1.24.1 timm==0.6.12 torchmetrics==0.10.0
     pip install wandb==0.13.9 seaborn==0.13.0
     # Clone the repo and submodules
     git clone https://github.com/fredzzhang/pvic.git
