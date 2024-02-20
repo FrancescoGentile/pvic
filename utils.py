@@ -214,7 +214,7 @@ class CustomisedDLE(DistributedLearningEngine):
         elif self._train_loader.dataset.name == "h2o":
             ap = self.test_h2o()
             if self._rank == 0:
-                perf = [ap.mean().item()]
+                perf = [ap]
                 print(f"Epoch {self._state.epoch} =>\t" f"mAP: {perf[0]:.4f}.")
                 wandb.init(config=self.config)
                 wandb.watch(self._state.net.module)
@@ -316,7 +316,7 @@ class CustomisedDLE(DistributedLearningEngine):
         elif self._train_loader.dataset.name == "h2o":
             ap = self.test_h2o()
             if self._rank == 0:
-                perf = [ap.mean().item()]
+                perf = [ap]
                 print(f"Epoch {self._state.epoch} =>\t" f"mAP: {ap:.4f}.")
                 wandb.log({"epochs": self._state.epoch, "mAP": perf[0]})
 
@@ -629,7 +629,7 @@ class CustomisedDLE(DistributedLearningEngine):
             pickle.dump(all_results, f, 2)
 
     @torch.no_grad()
-    def test_h2o(self) -> torch.Tensor:
+    def test_h2o(self) -> float:
         dataloader = self.test_dataloader
         net = self._state.net
         net.eval()
@@ -669,7 +669,7 @@ class CustomisedDLE(DistributedLearningEngine):
                 meter.update(output, target)
 
         if self._rank == 0:
-            ap = meter.compute().cpu()
+            ap = meter.compute().cpu().item()
             return ap
         else:
             return -1

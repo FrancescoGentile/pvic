@@ -43,7 +43,7 @@ class H2OEvaluator:
         self._map = MultilabelAveragePrecision(
             num_labels=num_interaction_classes,
             threshold=map_thresholds,
-            average="none",
+            average="macro",
         )
 
     # ----------------------------------------------------------------------- #
