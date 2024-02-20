@@ -73,6 +73,9 @@ def main(rank, args):
     elif args.dataset == "vcoco":
         object_to_target = list(train_loader.dataset.dataset.object_to_action.values())
         args.num_verbs = 24
+    elif args.dataset == "h2o":
+        object_to_target = train_loader.dataset.dataset.get_interactions_per_entity()
+        args.num_verbs = train_loader.dataset.dataset.num_interaction_classes
 
     model = build_detector(args, object_to_target)
 
@@ -147,12 +150,12 @@ def sanity_check(args):
         model.load_state_dict(ckpt["model_state_dict"])
 
     image, target = dataset[998]
-    outputs = model([image], targets=[target])
+    model([image], targets=[target])
 
 
 if __name__ == "__main__":
     if "DETR" not in os.environ:
-        raise KeyError(f'Specify the detector type with env. variable "DETR".')
+        raise KeyError('Specify the detector type with env. variable "DETR".')
     elif os.environ["DETR"] == "base":
         parser = argparse.ArgumentParser(
             parents=[

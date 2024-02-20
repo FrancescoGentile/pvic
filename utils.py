@@ -25,13 +25,14 @@ from torch.utils.data import Dataset
 
 from vcoco.vcoco import VCOCO
 from hicodet.hicodet import HICODet
+from h2o import H2ODataset, H2OEvaluator
 
 import pocket
 from pocket.core import DistributedLearningEngine
 from pocket.utils import DetectionAPMeter, BoxPairAssociation
 
 from ops import recover_boxes
-from detr.datasets import transforms as T
+import transforms as T
 
 
 def custom_collate(batch):
@@ -45,9 +46,6 @@ def custom_collate(batch):
 
 class DataFactory(Dataset):
     def __init__(self, name, partition, data_root):
-        if name not in ["hicodet", "vcoco"]:
-            raise ValueError("Unknown dataset ", name)
-
         if name == "hicodet":
             assert partition in ["train2015", "test2015"], (
                 "Unknown HICO-DET partition " + partition
@@ -57,7 +55,7 @@ class DataFactory(Dataset):
                 anno_file=os.path.join(data_root, f"instances_{partition}.json"),
                 target_transform=pocket.ops.ToTensor(input_format="dict"),
             )
-        else:
+        elif name == "vcoco":
             assert partition in ["train", "val", "trainval", "test"], (
                 "Unknown V-COCO partition " + partition
             )
@@ -72,6 +70,11 @@ class DataFactory(Dataset):
                 anno_file=os.path.join(data_root, f"instances_vcoco_{partition}.json"),
                 target_transform=pocket.ops.ToTensor(input_format="dict"),
             )
+        elif name == "h2o":
+            assert partition in ["train", "test"], f"Unknown H2O partition {partition}"
+            self.dataset = H2ODataset(path=data_root, split=partition)
+        else:
+            raise ValueError(f"Unknown dataset {name}")
 
         # Prepare dataset transforms
         normalize = T.Compose(
@@ -117,7 +120,7 @@ class DataFactory(Dataset):
             # representation from pixel indices to coordinates
             target["boxes_h"][:, :2] -= 1
             target["boxes_o"][:, :2] -= 1
-        else:
+        elif self.name == "vcoco":
             target["labels"] = target["actions"]
             target["object"] = target.pop("objects")
 
@@ -196,7 +199,7 @@ class CustomisedDLE(DistributedLearningEngine):
                         "mAP non_rare": perf[2],
                     }
                 )
-        else:
+        elif self._train_loader.dataset.name == "vcoco":
             ap = self.test_vcoco()
             if self._rank == 0:
                 perf = [
@@ -208,6 +211,21 @@ class CustomisedDLE(DistributedLearningEngine):
                 NOTE wandb was not setup for V-COCO as the dataset was only used for evaluation
                 """
                 wandb.init(config=self.config)
+        elif self._train_loader.dataset.name == "h2o":
+            ap = self.test_h2o()
+            perf = [ap.mean().item()]
+            if self._rank == 0:
+                wandb.init(config=self.config)
+                wandb.watch(self._state.net.module)
+                wandb.define_metric("epochs")
+                wandb.define_metric("mAP", step_metric="epochs", summary="max")
+                wandb.define_metric("training_steps")
+                wandb.define_metric(
+                    "elapsed_time", step_metric="training_steps", summary="max"
+                )
+                wandb.define_metric("loss", step_metric="training_steps", summary="min")
+
+                wandb.log({"epochs": self._state.epoch, "mAP": perf[0]})
 
     def _on_end(self):
         if self._rank == 0:
@@ -284,7 +302,7 @@ class CustomisedDLE(DistributedLearningEngine):
                         "mAP non_rare": perf[2],
                     }
                 )
-        else:
+        elif self._train_loader.dataset.name == "vcoco":
             ap = self.test_vcoco()
             if self._rank == 0:
                 perf = [
@@ -294,6 +312,12 @@ class CustomisedDLE(DistributedLearningEngine):
                 """
                 NOTE wandb was not setup for V-COCO as the dataset was only used for evaluation
                 """
+        elif self._train_loader.dataset.name == "h2o":
+            ap = self.test_h2o()
+            perf = [ap.mean().item()]
+            if self._rank == 0:
+                print(f"Epoch {self._state.epoch} =>\t" f"mAP: {ap:.4f}.")
+                wandb.log({"epochs": self._state.epoch, "mAP": perf[0]})
 
         if self._rank == 0:
             # Save checkpoints
@@ -602,3 +626,49 @@ class CustomisedDLE(DistributedLearningEngine):
         with open(os.path.join(cache_dir, "cache.pkl"), "wb") as f:
             # Use protocol 2 for compatibility with Python2
             pickle.dump(all_results, f, 2)
+
+    @torch.no_grad()
+    def test_h2o(self) -> torch.Tensor:
+        dataloader = self.test_dataloader
+        net = self._state.net
+        net.eval()
+
+        dataset: H2ODataset = dataloader.dataset.dataset
+        num_classes = dataset.num_interaction_classes
+        if self._rank == 0:
+            meter = H2OEvaluator(
+                num_interaction_classes=num_classes,
+                iou_threshold=0.5,
+                map_thresholds=11,
+            ).to("cuda")
+
+        for batch in tqdm(dataloader, disable=(self._world_size != 1)):
+            inputs = pocket.ops.relocate_to_cuda(batch[:-1])
+            outputs = net(*inputs)
+            targets = batch[-1]
+
+            for output, target in zip(outputs, targets):
+                output = {
+                    k.replace("h2o_", ""): v
+                    for k, v in output.items()
+                    if k.startswith("h2o_")
+                }
+
+                target["h2o_entity_boxes"] = recover_boxes(
+                    target["h2o_entity_boxes"], target["size"]
+                )
+                target = {
+                    k.replace("h2o_", ""): v
+                    for k, v in target.items()
+                    if k.startswith("h2o_")
+                }
+
+                output = {k: v.cuda() for k, v in output.items()}
+                target = {k: v.cuda() for k, v in target.items()}
+                meter.update(output, target)
+
+        if self._rank == 0:
+            ap = meter.compute().cpu()
+            return ap
+        else:
+            return -1

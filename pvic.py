@@ -17,7 +17,7 @@ from collections import OrderedDict
 from typing import Optional, Tuple, List
 from torchvision.ops import FeaturePyramidNetwork
 
-from transformers import (
+from transformer import (
     TransformerEncoder,
     TransformerDecoder,
     TransformerDecoderLayer,
@@ -34,7 +34,8 @@ from ops import (
 )
 
 from detr.models import build_model as build_base_detr
-from h_detr.models import build_model as build_advanced_detr
+
+# from h_detr.models import build_model as build_advanced_detr
 from detr.models.position_encoding import PositionEmbeddingSine
 from detr.util.misc import NestedTensor, nested_tensor_from_tensor_list
 
@@ -177,7 +178,7 @@ class HumanObjectMatcher(nn.Module):
                     self.obj_to_verb,
                 )
             )
-            object_types.append(labels[y_keep])
+            object_types.append(labels)
             positional_embeds.append(
                 {
                     "centre": torch.cat([c_pe[x_keep], c_pe[y_keep]], dim=-1).unsqueeze(
@@ -322,15 +323,19 @@ class PViC(nn.Module):
             x, y = torch.nonzero(pr).unbind(1)
             scores = lg[x, y].sigmoid() * pr[x, y].pow(self.raw_lambda)
             detections.append(
-                dict(
-                    boxes=bx,
-                    pairing=p_inds[x],
-                    scores=scores,
-                    labels=y,
-                    objects=objs[x],
-                    size=size,
-                    x=x,
-                )
+                {
+                    "boxes": bx,
+                    "pairing": p_inds[x],
+                    "scores": scores,
+                    "labels": y,
+                    "objects": objs[p_inds[:, 1]][x],
+                    "size": size,
+                    "x": x,
+                    "h2o_entity_boxes": bx,
+                    "h2o_entity_labels": objs,
+                    "h2o_interaction_indices": p_inds,
+                    "h2o_interaction_labels": lg.sigmoid() * pr.pow(self.raw_lambda),
+                }
             )
 
         return detections
@@ -360,14 +365,14 @@ class PViC(nn.Module):
 
         srcs = []
         masks = []
-        for l, feat in enumerate(features):
+        for l, feat in enumerate(features):  # noqa: E741
             src, mask = feat.decompose()
             srcs.append(ctx.input_proj[l](src))
             masks.append(mask)
             assert mask is not None
         if ctx.num_feature_levels > len(srcs):
             _len_srcs = len(srcs)
-            for l in range(_len_srcs, ctx.num_feature_levels):
+            for l in range(_len_srcs, ctx.num_feature_levels):  # noqa: E741
                 if l == _len_srcs:
                     src = ctx.input_proj[l](features[-1].tensors)
                 else:
@@ -562,7 +567,8 @@ def build_detector(args, obj_to_verb):
     if args.detector == "base":
         detr, _, postprocessors = build_base_detr(args)
     elif args.detector == "advanced":
-        detr, _, postprocessors = build_advanced_detr(args)
+        raise NotImplementedError("Advanced DETR is not supported")
+        # detr, _, postprocessors = build_advanced_detr(args)
 
     if os.path.exists(args.pretrained):
         if dist.is_initialized():
