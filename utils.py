@@ -213,8 +213,9 @@ class CustomisedDLE(DistributedLearningEngine):
                 wandb.init(config=self.config)
         elif self._train_loader.dataset.name == "h2o":
             ap = self.test_h2o()
-            perf = [ap.mean().item()]
             if self._rank == 0:
+                perf = [ap.mean().item()]
+                print(f"Epoch {self._state.epoch} =>\t" f"mAP: {perf[0]:.4f}.")
                 wandb.init(config=self.config)
                 wandb.watch(self._state.net.module)
                 wandb.define_metric("epochs")
@@ -314,8 +315,8 @@ class CustomisedDLE(DistributedLearningEngine):
                 """
         elif self._train_loader.dataset.name == "h2o":
             ap = self.test_h2o()
-            perf = [ap.mean().item()]
             if self._rank == 0:
+                perf = [ap.mean().item()]
                 print(f"Epoch {self._state.epoch} =>\t" f"mAP: {ap:.4f}.")
                 wandb.log({"epochs": self._state.epoch, "mAP": perf[0]})
 

@@ -41,7 +41,7 @@ class H2OEvaluator:
         self.iou_threshold = iou_threshold
 
         self._map = MultilabelAveragePrecision(
-            num_classes=num_interaction_classes,
+            num_labels=num_interaction_classes,
             threshold=map_thresholds,
             average="none",
         )
@@ -131,8 +131,8 @@ def _get_match_indices(
 
     matched_pred = []
     matched_gold = []
-    not_matched_pred = set(range(len(pred["pairing"])))
-    not_matched_gold = set(range(len(gold["pairing"])))
+    not_matched_pred = set(range(len(pred["interaction_indices"])))
+    not_matched_gold = set(range(len(gold["interaction_indices"])))
 
     max_num_matches = min(*iou_matrix.shape)
     for _ in range(max_num_matches):
