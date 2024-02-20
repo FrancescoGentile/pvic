@@ -106,7 +106,7 @@ def main(rank, args):
             if rank == 0:
                 print(f"The mAP is {ap.mean():.4f}.")
             return
-        else:
+        elif args.dataset == "hicodet":
             ap = engine.test_hico()
             if rank == 0:
                 # Fetch indices for rare and non-rare classes
@@ -117,6 +117,11 @@ def main(rank, args):
                     f" rare: {ap[rare].mean():.4f},"
                     f" none-rare: {ap[non_rare].mean():.4f}"
                 )
+            return
+        elif args.dataset == "h2o":
+            ap = engine.test_h2o()
+            if rank == 0:
+                print(f"The mAP is {ap.mean().item():.4f}.")
             return
 
     model.freeze_detector()

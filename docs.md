@@ -168,3 +168,19 @@ DETR=advanced python main.py --dataset vcoco --data-root vcoco/ --partitions tra
                              --resume /path/to/model \
                              --output-dir vcoco_cache
 ```
+
+## H2O
+
+### PViC-DETR-R50
+```bash
+# Training
+DETR=base python main.py --dataset h2o --data-root h2o/ --partitions train test \
+                         --pretrained checkpoints/detr-r50-coco.pt \
+                         --output-dir outputs/pvic-detr-r50-h2o
+# Testing
+DETR=base python main.py --dataset h2o --data-root h2o/ --partitions train test \
+                         --world-size 1 \
+                         --batch-size 1 \
+                         --eval \
+                         --resume /path/to/model
+```
