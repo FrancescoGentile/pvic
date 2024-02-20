@@ -216,6 +216,7 @@ class CustomisedDLE(DistributedLearningEngine):
             if self._rank == 0:
                 perf = [ap]
                 print(f"Epoch {self._state.epoch} =>\t" f"mAP: {perf[0]:.4f}.")
+                self.best_perf = perf[0]
                 wandb.init(config=self.config)
                 wandb.watch(self._state.net.module)
                 wandb.define_metric("epochs")
