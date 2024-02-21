@@ -121,7 +121,7 @@ def main(rank, args):
         elif args.dataset == "h2o":
             ap = engine.test_h2o()
             if rank == 0:
-                print(f"The mAP is {ap.mean().item():.4f}.")
+                print(f"The mAP is {ap:.4f}.")
             return
 
     model.freeze_detector()
