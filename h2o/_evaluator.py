@@ -42,7 +42,7 @@ class H2OEvaluator:
 
         self._map = MultilabelAveragePrecision(
             num_labels=num_interaction_classes,
-            threshold=map_thresholds,
+            thresholds=map_thresholds,
             average="macro",
         )
 
@@ -54,7 +54,7 @@ class H2OEvaluator:
         self, output: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor]
     ) -> None:
         pred, tgt = _match_prediction_gold(output, target, self.iou_threshold)
-        self._map.update(pred, tgt)
+        self._map.update(pred, tgt.round_().int())
 
     def compute(self) -> torch.Tensor:
         return self._map.compute()
