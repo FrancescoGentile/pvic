@@ -128,7 +128,7 @@ def main(args):
         checkpoint = torch.load(args.resume, map_location="cpu")
         model.load_state_dict(checkpoint["model_state_dict"])
     else:
-        print(f"=> Start from a randomly initialised model")
+        print("=> Start from a randomly initialised model")
 
     if args.image_path is None:
         image, _ = dataset[args.index]
@@ -150,7 +150,7 @@ def main(args):
 
 if __name__ == "__main__":
     if "DETR" not in os.environ:
-        raise KeyError(f'Specify the detector type with env. variable "DETR".')
+        raise KeyError('Specify the detector type with env. variable "DETR".')
     elif os.environ["DETR"] == "base":
         parser = argparse.ArgumentParser(
             parents=[

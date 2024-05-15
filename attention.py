@@ -24,15 +24,12 @@ import torch
 from torch import Tensor
 
 import warnings
-from typing import Tuple, Optional
+from typing import Tuple
 
-import torch
-from torch import Tensor
 from torch.nn.modules.linear import Linear
 from torch.nn.init import constant_
 from torch.nn.modules.module import Module
 
-import warnings
 from torch._jit_internal import Optional, Tuple
 
 try:

@@ -1,13 +1,8 @@
 from detr.models.position_encoding import PositionEmbeddingSine
 from detr.util.misc import NestedTensor
 from ops import compute_sinusoidal_pe
-import math
-import clip
-import numpy as np
 import seaborn as sns
 
-import cv2
-import json
 import torch
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
@@ -115,7 +110,7 @@ def vis_attn_weights():
     plt.margins(0, 0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
-    plt.savefig(f"attn_64.png", bbox_inches="tight", pad_inches=0)
+    plt.savefig("attn_64.png", bbox_inches="tight", pad_inches=0)
     plt.close()
 
 
@@ -194,7 +189,7 @@ def vis_detr_attn_weights():
     plt.margins(0, 0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
-    plt.savefig(f"human_attn.png", bbox_inches="tight", pad_inches=0)
+    plt.savefig("human_attn.png", bbox_inches="tight", pad_inches=0)
     plt.close()
 
     plt.imshow(image_o)
@@ -213,7 +208,7 @@ def vis_detr_attn_weights():
     plt.margins(0, 0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
-    plt.savefig(f"object_attn.png", bbox_inches="tight", pad_inches=0)
+    plt.savefig("object_attn.png", bbox_inches="tight", pad_inches=0)
     plt.close()
 
 
