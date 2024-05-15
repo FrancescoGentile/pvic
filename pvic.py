@@ -8,36 +8,34 @@ Microsoft Research Asia
 """
 
 import os
-import torch
-import torch.nn.functional as F
-import torch.distributed as dist
-
-from torch import nn, Tensor
 from collections import OrderedDict
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
+
+import torch
+import torch.distributed as dist
+import torch.nn.functional as F
+from torch import Tensor, nn
 from torchvision.ops import FeaturePyramidNetwork
-
-from transformer import (
-    TransformerEncoder,
-    TransformerDecoder,
-    TransformerDecoderLayer,
-    SwinTransformer,
-)
-
-from ops import (
-    binary_focal_loss_with_logits,
-    compute_spatial_encodings,
-    prepare_region_proposals,
-    associate_with_ground_truth,
-    compute_prior_scores,
-    compute_sinusoidal_pe,
-)
 
 from detr.models import build_model as build_base_detr
 
 # from h_detr.models import build_model as build_advanced_detr
 from detr.models.position_encoding import PositionEmbeddingSine
 from detr.util.misc import NestedTensor, nested_tensor_from_tensor_list
+from ops import (
+    associate_with_ground_truth,
+    binary_focal_loss_with_logits,
+    compute_prior_scores,
+    compute_sinusoidal_pe,
+    compute_spatial_encodings,
+    prepare_region_proposals,
+)
+from transformer import (
+    SwinTransformer,
+    TransformerDecoder,
+    TransformerDecoderLayer,
+    TransformerEncoder,
+)
 
 
 class MultiModalFusion(nn.Module):
@@ -331,10 +329,10 @@ class PViC(nn.Module):
                     "objects": objs[p_inds[:, 1]][x],
                     "size": size,
                     "x": x,
-                    "h2o_entity_boxes": bx,
-                    "h2o_entity_labels": objs,
-                    "h2o_interaction_indices": p_inds,
-                    "h2o_interaction_labels": lg.sigmoid() * pr.pow(self.raw_lambda),
+                    "custom_entity_boxes": bx,
+                    "custom_entity_labels": objs,
+                    "custom_interaction_indices": p_inds,
+                    "custom_interaction_labels": lg.sigmoid() * pr.pow(self.raw_lambda),
                 }
             )
 

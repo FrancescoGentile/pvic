@@ -3,19 +3,16 @@
 ##
 
 from dataclasses import dataclass
-from typing import List, Dict, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import torch
-from torchmetrics.classification import MultilabelAveragePrecision
+from torchmetrics import MetricCollection
+from torchmetrics.classification.average_precision import MultilabelAveragePrecision
 from torchvision import ops
 
 
-class H2OEvaluator:
-    """Evaluator for the Human-Object Interaction (HOI) task.
-
-    The evaluator computes the accuracy and mean average precision (mAP) for the
-    predictions.
-    """
+class Evaluator(MetricCollection):
+    """Evaluator for the Human-Human-Object Interaction Detection dataset."""
 
     def __init__(
         self,
@@ -33,38 +30,35 @@ class H2OEvaluator:
             map_thresholds: The thresholds to use for the computation of the mean
                 average precision.
         """
-        if iou_threshold < 0 or iou_threshold > 1:
+        if not 0 <= iou_threshold <= 1:
             raise ValueError(
                 f"The IoU threshold must be in the range [0, 1], got {iou_threshold}."
             )
 
         self.iou_threshold = iou_threshold
 
-        self._map = MultilabelAveragePrecision(
-            num_labels=num_interaction_classes,
-            thresholds=map_thresholds,
-            average="macro",
+        super().__init__(
+            {
+                "mAP": MultilabelAveragePrecision(
+                    num_labels=num_interaction_classes,
+                    thresholds=map_thresholds,
+                    average="macro",
+                ),
+            },
+            compute_groups=False,
         )
 
     # ----------------------------------------------------------------------- #
     # Public Methods
     # ----------------------------------------------------------------------- #
 
-    def update(
-        self, output: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor]
+    def update(  # type: ignore
+        self,
+        output: Dict[str, torch.Tensor],
+        target: Dict[str, torch.Tensor],
     ) -> None:
         pred, tgt = _match_prediction_gold(output, target, self.iou_threshold)
-        self._map.update(pred, tgt.round_().int())
-
-    def compute(self) -> torch.Tensor:
-        return self._map.compute()
-
-    def reset(self) -> None:
-        self._map.reset()
-
-    def to(self, device: Union[torch.device, str]) -> "H2OEvaluator":
-        self._map.to(device)
-        return self
+        super().update(pred, tgt.round_().int())
 
 
 # --------------------------------------------------------------------------- #

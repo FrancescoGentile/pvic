@@ -81,9 +81,9 @@ def main(rank, args):
     elif args.dataset == "vcoco":
         object_to_target = list(train_loader.dataset.dataset.object_to_action.values())
         args.num_verbs = 24
-    elif args.dataset == "h2o":
-        object_to_target = train_loader.dataset.dataset.get_interactions_per_entity()
-        args.num_verbs = train_loader.dataset.dataset.num_interaction_classes
+    elif args.dataset.startswith("datasets"):
+        object_to_target = train_loader.dataset.dataset.valid_interaction_tuples()
+        args.num_verbs = len(train_loader.dataset.dataset.interaction_classes())
 
     model = build_detector(args, object_to_target)
 
@@ -126,8 +126,8 @@ def main(rank, args):
                     f" none-rare: {ap[non_rare].mean():.4f}"
                 )
             return
-        elif args.dataset == "h2o":
-            ap = engine.test_h2o()
+        elif args.dataset.startswith("datasets"):
+            ap = engine.test_datasets()
             if rank == 0:
                 print(f"The mAP is {ap:.4f}.")
             return

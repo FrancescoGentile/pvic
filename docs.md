@@ -169,16 +169,16 @@ DETR=advanced python main.py --dataset vcoco --data-root vcoco/ --partitions tra
                              --output-dir vcoco_cache
 ```
 
-## H2O
+## Custom Datasets
 
 ### PViC-DETR-R50
 ```bash
 # Training
-DETR=base python main.py --dataset h2o --data-root h2o/ --partitions train test \
-                         --pretrained checkpoints/detr-r50-coco.pt \
-                         --output-dir outputs/pvic-detr-r50-h2o
+DETR=base python main.py --dataset "datasets.{name}" --data-root "hub/datasets/{name}" --partitions train test \
+                         --pretrained hub/models/detr/detr-r50-coco.pt \
+                         --output-dir outputs/pvic-detr-r50-{name}
 # Testing
-DETR=base python main.py --dataset h2o --data-root h2o/ --partitions train test \
+DETR=base python main.py --dataset "datasets.{name}" --data-root "hub/datasets/{name}" --partitions train test \
                          --world-size 1 \
                          --batch-size 1 \
                          --eval \
