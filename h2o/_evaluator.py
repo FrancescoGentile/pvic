@@ -113,9 +113,9 @@ def _match_prediction_gold(
         + len(indices.not_matched_predictions)
     ] = pred_labels[indices.not_matched_predictions]
 
-    targets[
-        len(indices.matched_targets) + len(indices.not_matched_predictions) :
-    ] = gold_labels[indices.not_matched_targets]
+    targets[len(indices.matched_targets) + len(indices.not_matched_predictions) :] = (
+        gold_labels[indices.not_matched_targets]
+    )
 
     return predictions, targets
 

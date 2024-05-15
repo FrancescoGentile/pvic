@@ -8,20 +8,21 @@ The Australian National University
 Microsoft Research Asia
 """
 
-import os
-import sys
-import torch
-import random
-import warnings
 import argparse
+import os
+import random
+import sys
+import warnings
+
 import numpy as np
+import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
 from torch.utils.data import DataLoader, DistributedSampler
 
+from configs import advanced_detector_args, base_detector_args
 from pvic import build_detector
-from utils import custom_collate, CustomisedDLE, DataFactory
-from configs import base_detector_args, advanced_detector_args
+from utils import CustomisedDLE, DataFactory, custom_collate
 
 warnings.filterwarnings("ignore")
 
@@ -53,7 +54,10 @@ def main(rank, args):
         num_workers=args.num_workers,
         pin_memory=True,
         sampler=DistributedSampler(
-            trainset, num_replicas=args.world_size, rank=rank, drop_last=True
+            trainset,
+            num_replicas=args.world_size,
+            rank=rank,
+            drop_last=True,
         ),
     )
     test_loader = DataLoader(
@@ -63,7 +67,11 @@ def main(rank, args):
         num_workers=args.num_workers,
         pin_memory=True,
         sampler=DistributedSampler(
-            testset, num_replicas=args.world_size, rank=rank, drop_last=True
+            testset,
+            num_replicas=args.world_size,
+            rank=rank,
+            drop_last=False,
+            shuffle=False,
         ),
     )
 

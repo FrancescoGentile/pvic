@@ -332,9 +332,9 @@ class CustomisedDLE(DistributedLearningEngine):
                 "scaler_state_dict": self._state.scaler.state_dict(),
             }
             if self._state.lr_scheduler is not None:
-                checkpoint[
-                    "scheduler_state_dict"
-                ] = self._state.lr_scheduler.state_dict()
+                checkpoint["scheduler_state_dict"] = (
+                    self._state.lr_scheduler.state_dict()
+                )
             torch.save(checkpoint, os.path.join(self._cache_dir, "latest.pth"))
             if perf[0] > self.best_perf:
                 self.best_perf = perf[0]
